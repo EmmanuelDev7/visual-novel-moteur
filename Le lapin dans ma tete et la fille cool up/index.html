@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a12">
+  <link rel="stylesheet" href="style.css">
+  <title>Visual Novel</title>
+  
+</head>
+<body>
+
+<div id="game">
+
+  <!-- BACKGROUND -->
+  <div id="background"></div>
+
+  <!-- OVERLAY (fade effects) -->
+  <div id="overlay"></div>
+
+  <!-- CHARACTER SPRITES -->
+  <div id="characters"></div>
+
+  <!-- NVL BOX (mode roman plein écran) -->
+  <div id="nvl-box">
+    <div id="nvl-content"></div>
+    <div class="nvl-controls">
+      <!-- Le next-indicator est partagé avec la dlg box, géré par engine -->
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <button class="hud-btn" onclick="goToTitle()">MENU</button>
+    <button class="hud-btn" onclick="toggleBacklog()" title="Historique [B]">LOG</button>
+    <button class="hud-btn" onclick="openSaveModal('save')" title="Sauvegarder [S]">SAVE</button>
+    <button class="hud-btn" onclick="openSaveModal('load')" title="Charger [L]">LOAD</button>
+    <button class="hud-btn" id="auto-btn" onclick="toggleAutoAdvance()" title="Auto-avance [A]">AUTO</button>
+    <button class="hud-btn" id="skip-btn" onclick="toggleSkip()" title="Skip rapide [Tab]">SKIP</button>
+    <button class="hud-btn" id="emo-btn" onclick="toggleEmotionPanel()" title="Émotions [E]">EMO</button>
+    <button class="hud-btn" onclick="openSettings()" title="Paramètres">⚙</button>
+    <div id="audio-controls">
+      <label class="audio-label" title="Volume musique">
+        🎵
+        <input type="range" id="bgm-volume" min="0" max="1" step="0.05" value="0.5">
+      </label>
+      <button class="hud-btn audio-mute-btn" id="bgm-mute-btn" onclick="toggleBGMMute()" title="Muet musique">🔊</button>
+    </div>
+  </div>
+
+  <!-- EMOTION PANEL -->
+  <div id="emotion-panel" class="hidden"></div>
+
+  <!-- DIALOGUE BOX -->
+  <div id="dialogue-box">
+    <div id="dialogue-inner">
+      <div id="speaker-name"></div>
+      <div id="dialogue-text"></div>
+      <span id="next-indicator">▼</span>
+    </div>
+  </div>
+
+  <!-- CHOICES -->
+  <div id="choice-panel"></div>
+
+  <!-- TOAST -->
+  <div id="vn-toast"></div>
+
+  <!-- ════════════════════════════════════════════════
+       TITLE SCREEN
+  ════════════════════════════════════════════════ -->
+  <div id="title-screen" style="display: flex;">
+    <img src="img/cover1.png" alt="Couverture du visual Novel">
+
+    <div id="title-buttons">
+      <button class="title-btn" onclick="startGame()">Jouer</button>
+      <button class="title-btn" id="continue-btn" onclick="continueGame()" style="display:none;">Continuer</button>
+      <button class="title-btn" id="title-load-btn" onclick="openSaveModal('load')" style="display:none;">Charger</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       END SCREEN
+  ════════════════════════════════════════════════ -->
+  <div id="end-screen" style="display: none;">
+    <h2 id="end-title"></h2>
+    <button id="next">Page suivante</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       MODAL SAUVEGARDE / CHARGEMENT
+  ════════════════════════════════════════════════ -->
+  <div id="save-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="save-modal-title">Sauvegarder</h3>
+        <button class="modal-close" onclick="closeSaveModal()">✕</button>
+      </div>
+      <div id="save-slots" class="save-slots-list"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       MODAL BACKLOG (historique + rollback)
+  ════════════════════════════════════════════════ -->
+  <div id="backlog-modal" class="modal-overlay">
+    <div class="modal-box modal-box--backlog">
+      <div class="modal-header">
+        <h3>Historique</h3>
+        <button class="modal-close" onclick="toggleBacklog()">✕</button>
+      </div>
+      <div id="backlog-list" class="backlog-list"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       MODAL PARAMÈTRES
+  ════════════════════════════════════════════════ -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Paramètres</h3>
+        <button class="modal-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-body">
+
+        <label class="setting-row">
+          <span class="setting-label">Vitesse du texte</span>
+          <select id="speed-select" class="setting-control">
+            <option value="60">Lent</option>
+            <option value="28" selected>Normal</option>
+            <option value="15">Rapide</option>
+            <option value="0">Instantané</option>
+          </select>
+        </label>
+
+        <label class="setting-row">
+          <span class="setting-label">Délai auto-avance</span>
+          <div class="setting-range-wrap">
+            <input type="range" id="auto-delay-range" min="500" max="5000" step="250" value="2000">
+            <span id="auto-delay-label">2s</span>
+          </div>
+        </label>
+
+        <button class="setting-apply-btn" onclick="applySettings()">Appliquer</button>
+
+        <!-- Raccourcis clavier -->
+        <div style="margin-top:8px; padding-top:12px; border-top:1px solid rgba(155,5,5,0.2);">
+          <p style="font-size:10px; color:var(--text-dim); letter-spacing:0.06em; line-height:1.8;">
+            <strong style="color:var(--red)">Raccourcis :</strong><br>
+            Espace / Entrée / → &nbsp;Avancer<br>
+            B &nbsp;Historique &nbsp;|&nbsp; S &nbsp;Sauvegarder &nbsp;|&nbsp; L &nbsp;Charger<br>
+            A &nbsp;Auto-avance &nbsp;|&nbsp; Tab &nbsp;Skip rapide<br>
+            F5 &nbsp;Sauvegarde rapide &nbsp;|&nbsp; F9 &nbsp;Charger rapide<br>
+            E &nbsp;Panneau émotions
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #game -->
+
+<!-- ════════════════════════════════════════════════
+     CHARGEMENT DES SCRIPTS
+     Ordre : chapitres → scenario.js → engine.js
+════════════════════════════════════════════════ -->
+<script src="./scenario/voix_commune/partie7.js"></script>
+<script src="./scenario/voix_commune/partie6.js"></script>
+<script src="./scenario/voix_commune/partie5.js"></script>
+<script src="./scenario/voix_commune/partie4.js"></script>
+<script src="./scenario/voix_commune/partie3.js"></script>
+<script src="./scenario/voix_commune/partie2.js"></script>
+<script src="./scenario/voix_commune/partie1.js"></script>
+<script src="./scenario/voix_commune/intro.js"></script>
+<script src="./scenario/scenario.js"></script>
+<script src="./scenario/engine.js"></script>
+
+<!-- Mise à jour du label délai auto en temps réel -->
+<script>
+  const delayRange = document.getElementById('auto-delay-range');
+  const delayLabel = document.getElementById('auto-delay-label');
+  if (delayRange && delayLabel) {
+    delayRange.addEventListener('input', () => {
+      delayLabel.textContent = (delayRange.value / 1000).toFixed(2).replace(/\.?0+$/, '') + 's';
+    });
+  }
+</script>
+
+<!-- ════════════════════════════════════════════════
+     SERVICE WORKER (PWA — mode offline)
+     Enregistré depuis la racine du site pour couvrir
+     tous les fichiers du projet.
+════════════════════════════════════════════════ -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+        .then(reg => {
+          console.log('[SW] Enregistré, scope :', reg.scope);
+          /* Vérifier les mises à jour à chaque visite */
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                /* Une nouvelle version est disponible */
+                if (typeof showToast === 'function') {
+                  showToast('🔄 Mise à jour disponible — rechargez la page', 5000);
+                }
+              }
+            });
+          });
+        })
+        .catch(err => console.warn('[SW] Échec d\'enregistrement :', err));
+    });
+  }
+</script>
+
+</body>
+</html>
